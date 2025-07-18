@@ -46,8 +46,14 @@ export class UserController {
         .json({ message: "Usuário criado", userId: user.id });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        throw new AppError("Erro interno", 400);
+        return res.status(400).json({ message: "ops!" });
       }
+
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json({ error: error.message });
+      }
+
+      return res.status(500).json({ error: "Erro interno" });
     }
   };
 }
