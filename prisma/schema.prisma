@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
@@ -12,4 +6,84 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+enum Status{
+  PENDING
+  IN_PROGRESS
+  DONE
+}
+
+enum Prioridade{
+  BAIXA
+  MÉDIA
+  ALTA
+}
+
+enum UserRole{
+  ADMIN
+  USER
+  TECNICO
+}
+
+model User {
+  id       String    @id @default(cuid())
+  email    String    @unique
+  password String
+  role     UserRole  @default(USER)
+  cargo    String?   // Apenas para técnicos
+
+  chamados Chamado[]
+  servicos Servico[] // Apenas se for técnico
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+
+model Chamado{
+  id String   @id @default(cuid())
+  userId String @map("user_id")
+  user User @relation(fields: [userId], references: [id])
+  prioridade Prioridade @default(BAIXA)
+  chamado_servico ChamadoServico[]
+  descricao String
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+
+  @@map("chamados")
+}
+
+model Servico{
+  id String   @id @default(cuid())
+  titulo String
+  descricao String 
+  tecnicoId String @map("tecnico_id")
+  tecnico   User   @relation(fields: [tecnicoId], references: [id])
+
+  chamado_servico ChamadoServico[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  @@map("servicos")
+}
+
+model ChamadoServico{
+  id String   @id @default(cuid())
+  chamadoId String @map("chamado_id")
+  chamado Chamado @relation(fields: [chamadoId], references: [id])
+
+  servicoId String @map("servico_id")
+  servico Servico @relation(fields: [servicoId], references: [id])
+
+  status Status @default(PENDING)
+  prioridade Prioridade @default(BAIXA)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+
+  @@map("chamado_servico")
 }
