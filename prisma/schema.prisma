@@ -32,6 +32,8 @@ model User {
   role     UserRole  @default(USER)
   cargo    String?   // Apenas para técnicos
 
+  profileImage String? @map("profile_image")
+
   chamados Chamado[]
   servicos Servico[] // Apenas se for técnico
 

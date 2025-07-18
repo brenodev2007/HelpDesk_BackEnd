@@ -65,8 +65,14 @@ export class UserController {
 
     try {
       const { id } = Bodyschema.parse(req.body);
+      const requester = req.user; // dados do token
 
-      if (req.user.id !== id) {
+      if (!requester) {
+        return res.status(401).json({ error: "Token inválido ou ausente" });
+      }
+
+      // Se não for admin, só pode deletar a própria conta
+      if (requester.role !== UserRole.ADMIN && requester.id !== id) {
         return res
           .status(403)
           .json({ error: "Você só pode deletar sua própria conta" });
@@ -77,7 +83,7 @@ export class UserController {
       return res.status(200).json({ message: "Conta removida com sucesso" });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "ops!" });
+        return res.status(400).json({ message: "Ops!" });
       }
       console.error(error);
       return res.status(500).json({ error: "Erro ao remover conta" });
@@ -121,6 +127,47 @@ export class UserController {
       }
       console.error(error);
       return res.status(500).json({ error: "Erro interno" });
+    }
+  };
+
+  uploadDePerfil = async (req: Request, res: Response) => {
+    const userId = req.user.id;
+
+    const Bodyschema = z.object({
+      originalname: z.string().min(1, "Nome do arquivo ausente"),
+      mimetype: z.union([
+        z.literal("image/png"),
+        z.literal("image/jpeg"),
+        z.literal("image/jpg"),
+      ]),
+      filename: z.string().min(1),
+    });
+
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "Arquivo de perfil não enviado" });
+      }
+
+      const fileData = Bodyschema.parse(req.file);
+
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: {
+          profileImage: fileData.filename,
+        },
+      });
+
+      return res.status(200).json({
+        message: "Imagem de perfil atualizada com sucesso",
+        user: updatedUser,
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Ops!" });
+      }
+
+      console.error(error);
+      return res.status(500).json({ error: "Erro ao atualizar perfil" });
     }
   };
 }
