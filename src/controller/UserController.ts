@@ -170,4 +170,6 @@ export class UserController {
       return res.status(500).json({ error: "Erro ao atualizar perfil" });
     }
   };
+
+  listarChamado = async (req: Request, res: Response) => {};
 }
