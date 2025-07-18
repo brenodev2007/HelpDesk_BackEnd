@@ -25,3 +25,9 @@ Userroutes.patch(
   upload.single("file"),
   userController.uploadDePerfil
 );
+
+Userroutes.get(
+  "/chamados",
+  ensureRole(["USER"]),
+  userController.listarChamadoCliente
+);
