@@ -9,3 +9,11 @@ export const Userroutes = Router();
 const userController = new UserController();
 
 Userroutes.post("/cadastro", userController.cadastro);
+
+Userroutes.delete(
+  "/remover",
+  ensureRole(["USER"]),
+  userController.removerConta.bind(userController)
+);
+
+Userroutes.post("/login", userController.login);
