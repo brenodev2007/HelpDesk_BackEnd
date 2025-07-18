@@ -28,6 +28,6 @@ Userroutes.patch(
 
 Userroutes.get(
   "/chamados",
-  ensureRole(["USER"]),
+  ensureRole(["USER", "ADMIN"]),
   userController.listarChamadoCliente
 );
