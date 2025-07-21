@@ -226,7 +226,7 @@ export class UserController {
         data: {
           email: data.email,
           password: hashedPassword,
-          role: UserRole.TECNICO, // uso do enum tipado
+          role: "TECNICO",
           cargo: data.cargo,
         },
       });
@@ -240,6 +240,70 @@ export class UserController {
 
       console.error(error);
       return res.status(500).json({ error: "Erro interno" });
+    }
+  };
+
+  criarServico = async (req: Request, res: Response) => {
+    const servicoSchema = z.object({
+      titulo: z.string().min(2),
+      descricao: z.string().min(5),
+      tecnicoId: z.string().cuid(), // ou uuid() se for UUID
+    });
+
+    try {
+      const data = servicoSchema.parse(req.body);
+
+      const tecnico = await prisma.user.findUnique({
+        where: { id: data.tecnicoId },
+      });
+
+      if (!tecnico || tecnico.role !== "TECNICO") {
+        return res.status(404).json({ error: "Técnico não encontrado" });
+      }
+
+      const servico = await prisma.servico.create({
+        data: {
+          titulo: data.titulo,
+          descricao: data.descricao,
+          tecnicoId: data.tecnicoId,
+        },
+      });
+
+      return res.status(201).json(servico);
+    } catch (err) {
+      if (err instanceof z.ZodError)
+        return res.status(400).json({ message: "Dados inválidos" });
+
+      return res.status(500).json({ error: "Erro ao criar serviço" });
+    }
+  };
+
+  listarClientes = async (req: Request, res: Response) => {
+    const authSchema = z.object({
+      id: z.string().cuid(),
+      role: z.enum(["ADMIN", "USER", "TECNICO"]),
+    });
+
+    try {
+      const userData = authSchema.parse(req.user); // valida o token decodificado
+
+      if (userData.role !== "ADMIN") {
+        return res.status(403).json({ error: "Acesso negado" });
+      }
+
+      const clientes = await prisma.user.findMany({
+        where: { role: "USER" },
+        select: { id: true, email: true, cargo: true },
+      });
+
+      return res.status(200).json(clientes);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ error: "Token inválido ou mal formatado" });
+      }
+      return res.status(500).json({ error: "Erro ao listar clientes" });
     }
   };
 }

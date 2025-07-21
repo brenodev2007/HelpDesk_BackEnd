@@ -32,8 +32,22 @@ Userroutes.get(
   userController.listarChamadoCliente
 );
 
+//Rotas do ADMIN
+
 Userroutes.post(
   "/criar-tecnico",
   ensureRole(["ADMIN"]),
   userController.criarTecnico
+);
+
+Userroutes.post(
+  "/criar-servico",
+  ensureRole(["ADMIN"]),
+  userController.criarServico
+);
+
+Userroutes.get(
+  "/listar-clientes",
+  ensureRole(["ADMIN"]),
+  userController.listarClientes
 );
