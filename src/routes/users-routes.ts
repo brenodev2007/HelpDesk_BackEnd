@@ -31,3 +31,9 @@ Userroutes.get(
   ensureRole(["USER", "ADMIN"]),
   userController.listarChamadoCliente
 );
+
+Userroutes.post(
+  "/criar-tecnico",
+  ensureRole(["ADMIN"]),
+  userController.criarTecnico
+);

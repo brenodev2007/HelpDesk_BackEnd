@@ -202,4 +202,44 @@ export class UserController {
   };
 
   // ========== ADMIN ==========
+  criarTecnico = async (req: Request, res: Response) => {
+    const tecnicoSchema = z.object({
+      email: z.string().email(),
+      password: z.string().min(6),
+      cargo: z.string().min(2).optional(),
+    });
+
+    try {
+      const data = tecnicoSchema.parse(req.body);
+
+      const existingUser = await prisma.user.findUnique({
+        where: { email: data.email },
+      });
+
+      if (existingUser) {
+        return res.status(409).json({ error: "Email já cadastrado" });
+      }
+
+      const hashedPassword = await bcrypt.hash(data.password, 10);
+
+      const tecnico = await prisma.user.create({
+        data: {
+          email: data.email,
+          password: hashedPassword,
+          role: UserRole.TECNICO, // uso do enum tipado
+          cargo: data.cargo,
+        },
+      });
+
+      return res
+        .status(201)
+        .json({ message: "Técnico criado", tecnicoId: tecnico.id });
+    } catch (error) {
+      if (error instanceof z.ZodError)
+        return res.status(400).json({ message: "Dados inválidos" });
+
+      console.error(error);
+      return res.status(500).json({ error: "Erro interno" });
+    }
+  };
 }
