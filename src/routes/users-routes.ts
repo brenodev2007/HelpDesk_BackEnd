@@ -51,3 +51,9 @@ Userroutes.get(
   ensureRole(["ADMIN"]),
   userController.listarClientes
 );
+
+Userroutes.get(
+  "/listar-servicos-admin",
+  ensureRole(["ADMIN"]),
+  userController.listarServicosAdmin
+);

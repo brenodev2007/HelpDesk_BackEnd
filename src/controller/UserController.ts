@@ -171,6 +171,45 @@ export class UserController {
     }
   };
 
+  criarChamado = async (req: Request, res: Response) => {
+    const chamadoSchema = z.object({
+      descricao: z.string().min(10),
+      prioridade: z.enum(["BAIXA", "MÉDIA", "ALTA"]),
+    });
+
+    try {
+      const userData = z
+        .object({
+          id: z.string().cuid(),
+          role: z.enum(["USER", "ADMIN", "TECNICO"]),
+        })
+        .parse(req.user);
+
+      if (userData.role !== "USER") {
+        return res
+          .status(403)
+          .json({ error: "Somente clientes podem criar chamados" });
+      }
+
+      const data = chamadoSchema.parse(req.body);
+
+      const chamado = await prisma.chamado.create({
+        data: {
+          descricao: data.descricao,
+          prioridade: data.prioridade,
+          userId: userData.id, // o cliente que criou
+        },
+      });
+
+      return res.status(201).json({ message: "Chamado criado", chamado });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Dados inválidos" });
+      }
+      return res.status(500).json({ error: "Erro ao criar chamado" });
+    }
+  };
+
   listarChamadoCliente = async (req: Request, res: Response) => {
     const userSchema = z.object({
       id: z.string().uuid(),
@@ -304,6 +343,74 @@ export class UserController {
           .json({ error: "Token inválido ou mal formatado" });
       }
       return res.status(500).json({ error: "Erro ao listar clientes" });
+    }
+  };
+
+  listarServicosAdmin = async (req: Request, res: Response) => {
+    const authSchema = z.object({
+      id: z.string().cuid(),
+      role: z.enum(["ADMIN", "USER", "TECNICO"]),
+    });
+
+    try {
+      const userData = authSchema.parse(req.user);
+
+      if (userData.role !== "ADMIN") {
+        return res.status(403).json({ error: "Acesso negado" });
+      }
+
+      const servico = await prisma.chamado.findMany({
+        include: {
+          user: true,
+          chamado_servico: {
+            include: { servico: true },
+          },
+        },
+      });
+
+      return res.json(servico);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ error: "Token inválido ou mal formatado" });
+      }
+      return res.status(500).json({ error: "Erro ao listar chamados" });
+    }
+  };
+
+  // ========== TÉCNICO ==========
+  pegarChamado = async (req: Request, res: Response) => {
+    const schema = z.object({
+      chamadoId: z.string().cuid(),
+    });
+
+    try {
+      const { chamadoId } = schema.parse(req.body);
+
+      const userData = z
+        .object({
+          id: z.string().cuid(),
+          role: z.enum(["TECNICO", "ADMIN", "USER"]),
+        })
+        .parse(req.user);
+
+      if (userData.role !== "TECNICO") {
+        return res
+          .status(403)
+          .json({ error: "Somente técnicos podem pegar chamados" });
+      }
+
+      const chamado = await prisma.chamado.update({
+        where: { id: chamadoId },
+        data: { userId: userData.id },
+      });
+
+      return res.json({ message: "Chamado atribuído ao técnico", chamado });
+    } catch (error) {
+      if (error instanceof z.ZodError)
+        return res.status(400).json({ error: "Dados inválidos" });
+      return res.status(500).json({ error: "Erro ao atribuir chamado" });
     }
   };
 }
