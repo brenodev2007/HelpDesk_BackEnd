@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { prisma } from "@/database/prisma";
 import bcrypt from "bcrypt";
 import jwt, { SignOptions } from "jsonwebtoken";
-
+import { parseTokenUser } from "@/utils/validateUserFromToken";
 import { authConfig } from "@/config/auth";
 import { z } from "zod";
 import { UserRole } from "@/generated/prisma";
@@ -65,7 +65,8 @@ export class UserController {
 
     try {
       const { id } = Bodyschema.parse(req.body);
-      const requester = req.user; // dados do token
+
+      const requester = parseTokenUser(req.user);
 
       if (!requester) {
         return res.status(401).json({ error: "Token inválido ou ausente" });
@@ -252,6 +253,14 @@ export class UserController {
 
     try {
       const data = tecnicoSchema.parse(req.body);
+
+      const userData = parseTokenUser(req.user);
+
+      if (userData.role !== UserRole.ADMIN) {
+        return res
+          .status(403)
+          .json({ error: "Somente admins podem executar esta ação" });
+      }
 
       const existingUser = await prisma.user.findUnique({
         where: { email: data.email },

@@ -22,7 +22,7 @@ export function ensureRole(roles: string[]) {
         return res.status(403).json({ error: "Access denied" });
       }
 
-      req.user = decoded; // Agora não dá erro
+      req.user = decoded;
       return next();
     } catch {
       return res.status(401).json({ error: "Invalid token" });
