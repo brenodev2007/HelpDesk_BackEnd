@@ -130,6 +130,8 @@ export class UserController {
     }
   };
 
+  //Lógica JWT
+
   uploadDePerfil = async (req: Request, res: Response) => {
     const userId = req.user.id;
 
