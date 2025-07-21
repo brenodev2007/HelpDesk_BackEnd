@@ -185,7 +185,7 @@ export class UserController {
         })
         .parse(req.user);
 
-      if (userData.role !== "USER") {
+      if (userData.role !== "USER" && userData.role !== "ADMIN") {
         return res
           .status(403)
           .json({ error: "Somente clientes podem criar chamados" });
@@ -395,7 +395,7 @@ export class UserController {
         })
         .parse(req.user);
 
-      if (userData.role !== "TECNICO") {
+      if (userData.role !== "TECNICO" && userData.role !== "ADMIN") {
         return res
           .status(403)
           .json({ error: "Somente técnicos podem pegar chamados" });
@@ -411,6 +411,119 @@ export class UserController {
       if (error instanceof z.ZodError)
         return res.status(400).json({ error: "Dados inválidos" });
       return res.status(500).json({ error: "Erro ao atribuir chamado" });
+    }
+  };
+
+  adicionarServicosAoChamado = async (req: Request, res: Response) => {
+    const schema = z.object({
+      chamadoId: z.string().cuid(),
+      servicosIds: z.array(z.string().cuid()).min(1),
+    });
+
+    try {
+      const { chamadoId, servicosIds } = schema.parse(req.body);
+
+      const userData = z
+        .object({
+          id: z.string().cuid(),
+          role: z.enum(["TECNICO", "ADMIN", "USER"]),
+        })
+        .parse(req.user);
+
+      if (userData.role !== "TECNICO" && userData.role !== "ADMIN") {
+        return res
+          .status(403)
+          .json({ error: "Somente técnicos podem adicionar serviços" });
+      }
+
+      // Verifica se o chamado pertence ao técnico
+      const chamado = await prisma.chamado.findUnique({
+        where: { id: chamadoId },
+      });
+
+      if (!chamado || chamado.userId !== userData.id) {
+        return res
+          .status(403)
+          .json({ error: "Você não pode modificar este chamado" });
+      }
+
+      const criado = await prisma.chamadoServico.createMany({
+        data: servicosIds.map((servicoId) => ({
+          chamadoId,
+          servicoId,
+          status: "PENDING",
+          prioridade: "MÉDIA",
+        })),
+      });
+
+      return res.json({
+        message: "Serviços adicionados ao chamado",
+        count: criado.count,
+      });
+    } catch (err) {
+      if (err instanceof z.ZodError)
+        return res.status(400).json({ error: "Dados inválidos" });
+      return res.status(500).json({ error: "Erro ao adicionar serviços" });
+    }
+  };
+
+  editarStatusServico = async (req: Request, res: Response) => {
+    const schema = z.object({
+      chamadoServicoId: z.string().cuid(),
+      novoStatus: z.enum(["PENDING", "IN_PROGRESS", "DONE"]),
+    });
+
+    try {
+      const { chamadoServicoId, novoStatus } = schema.parse(req.body);
+
+      const userData = z
+        .object({
+          id: z.string().cuid(),
+          role: z.enum(["TECNICO", "ADMIN", "USER"]),
+        })
+        .parse(req.user);
+
+      if (userData.role !== "TECNICO" && userData.role !== "ADMIN") {
+        return res
+          .status(403)
+          .json({ error: "Somente técnicos podem atualizar status" });
+      }
+
+      // Busca o chamado_servico junto com o serviço
+      const chamadoServico = await prisma.chamadoServico.findUnique({
+        where: { id: chamadoServicoId },
+        include: {
+          servico: {
+            select: { tecnicoId: true },
+          },
+        },
+      });
+
+      if (!chamadoServico) {
+        return res
+          .status(404)
+          .json({ error: "Chamado/Serviço não encontrado" });
+      }
+
+      // Valida se o técnico dono do serviço é quem está logado
+      if (chamadoServico.servico.tecnicoId !== userData.id) {
+        return res
+          .status(403)
+          .json({ error: "Você não tem permissão para editar esse serviço" });
+      }
+
+      const atualizado = await prisma.chamadoServico.update({
+        where: { id: chamadoServicoId },
+        data: { status: novoStatus },
+      });
+
+      return res
+        .status(200)
+        .json({ message: "Status atualizado com sucesso", atualizado });
+    } catch (err) {
+      if (err instanceof z.ZodError)
+        return res.status(400).json({ error: "Dados inválidos" });
+      return res.status(500).json({ error: "Erro ao atualizar status" });
     }
   };
 }

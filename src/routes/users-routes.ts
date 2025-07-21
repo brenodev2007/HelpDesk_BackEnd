@@ -26,6 +26,12 @@ Userroutes.patch(
   userController.uploadDePerfil
 );
 
+Userroutes.post(
+  "/criar-chamado",
+  ensureRole(["USER", "ADMIN"]),
+  userController.criarChamado
+);
+
 Userroutes.get(
   "/chamados",
   ensureRole(["USER", "ADMIN"]),
@@ -56,4 +62,23 @@ Userroutes.get(
   "/listar-servicos-admin",
   ensureRole(["ADMIN"]),
   userController.listarServicosAdmin
+);
+
+//Rotas TECNICO
+Userroutes.patch(
+  "/pegar-chamado",
+  ensureRole(["TECNICO", "ADMIN"]),
+  userController.pegarChamado
+);
+
+Userroutes.post(
+  "/adicionar-servicos",
+  ensureRole(["TECNICO", "ADMIN"]),
+  userController.adicionarServicosAoChamado
+);
+
+Userroutes.patch(
+  "/editar-status",
+  ensureRole(["TECNICO"]),
+  userController.editarStatusServico
 );
