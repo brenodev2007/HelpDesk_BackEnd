@@ -526,4 +526,40 @@ export class UserController {
       return res.status(500).json({ error: "Erro ao atualizar status" });
     }
   };
+
+  listarChamadosDoTecnico = async (req: Request, res: Response) => {
+    const userId = req.user.id;
+
+    const schema = z.object({
+      id: z.string().cuid(),
+    });
+    try {
+      schema.parse({ id: userId });
+
+      const chamados = await prisma.chamadoServico.findMany({
+        where: {
+          servico: {
+            tecnicoId: userId,
+          },
+        },
+        include: {
+          chamado: {
+            include: {
+              user: true,
+            },
+          },
+          servico: true,
+        },
+      });
+
+      return res.json({ chamados });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "ID do técnico inválido" });
+      }
+      return res
+        .status(500)
+        .json({ error: "Erro ao buscar chamados do técnico" });
+    }
+  };
 }

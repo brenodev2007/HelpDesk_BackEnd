@@ -79,6 +79,12 @@ Userroutes.post(
 
 Userroutes.patch(
   "/editar-status",
-  ensureRole(["TECNICO"]),
+  ensureRole(["TECNICO", "ADMIN"]),
   userController.editarStatusServico
+);
+
+Userroutes.get(
+  "/meus-chamados-tecnico",
+  ensureRole(["TECNICO", "ADMIN"]),
+  userController.listarChamadosDoTecnico
 );
