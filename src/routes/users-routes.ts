@@ -19,6 +19,8 @@ Userroutes.delete(
 
 Userroutes.post("/login", userController.login);
 
+Userroutes.get("clientes/:id", userController.verPerfil);
+
 Userroutes.patch(
   "/uploadPerfil",
   ensureRole(["USER", "TECNICO", "ADMIN"]),

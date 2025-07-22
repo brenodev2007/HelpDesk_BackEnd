@@ -132,6 +132,51 @@ export class UserController {
 
   //Lógica JWT
 
+  verPerfil = async (req: Request, res: Response) => {
+    const paramsSchema = z.object({
+      id: z.string().uuid(), // ou z.string().cuid() se usar cuid
+    });
+
+    try {
+      const { id } = paramsSchema.parse(req.params);
+
+      // req.user foi preenchido no middleware JWT
+      const requester = req.user;
+
+      if (!requester) {
+        return res.status(401).json({ error: "Usuário não autenticado" });
+      }
+
+      // Permitir só ver perfil próprio ou admin
+      if (requester.id !== id && requester.role !== "ADMIN") {
+        return res.status(403).json({ error: "Acesso negado" });
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+        },
+      });
+
+      if (!user) {
+        return res.status(404).json({ error: "Usuário não encontrado" });
+      }
+
+      return res.json(user);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ error: "Parâmetro inválido", issues: error.issues });
+      }
+      console.error(error);
+      return res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  };
+
   uploadDePerfil = async (req: Request, res: Response) => {
     const userId = req.user.id;
 
