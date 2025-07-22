@@ -13,7 +13,6 @@ export class UserController {
 
   cadastro = async (req: Request, res: Response) => {
     const cadastroSchema = z.object({
-      nome: z.string().min(3).max(50),
       email: z.string().email(),
       password: z.string().min(6),
       role: z
@@ -47,7 +46,7 @@ export class UserController {
         .json({ message: "Usuário criado", userId: user.id });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "ops!" });
+        return res.status(400).json({ error: error.message });
       }
 
       if (error instanceof AppError) {

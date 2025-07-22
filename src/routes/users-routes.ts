@@ -9,7 +9,7 @@ const upload = multer({ dest: "./tmp/uploads" });
 export const Userroutes = Router();
 const userController = new UserController();
 
-Userroutes.post("/cadastro", userController.cadastro);
+Userroutes.post("/register", userController.cadastro);
 
 Userroutes.delete(
   "/remover",
