@@ -4,8 +4,7 @@ import { ensureRole } from "@/middlewares/ensureRole";
 import multer from "multer";
 import { UserRole } from "@prisma/client";
 import { ensureAuthenticated } from "@/middlewares/ensureAuthenticated.ts";
-
-const upload = multer({ dest: "./tmp/uploads" });
+import { upload } from "@/middlewares/upload";
 
 export const Userroutes = Router();
 const userController = new UserController();
@@ -25,7 +24,7 @@ Userroutes.get("/:id", ensureAuthenticated, userController.verPerfil);
 Userroutes.patch(
   "/uploadPerfil",
   ensureRole(["USER", "TECNICO", "ADMIN"]),
-  upload.single("profileImage"),
+  upload.single("file"),
   userController.uploadDePerfil
 );
 

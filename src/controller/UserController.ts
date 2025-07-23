@@ -183,22 +183,20 @@ export class UserController {
   };
 
   uploadDePerfil = async (req: Request, res: Response) => {
-    console.log("Arquivo recebido:", req.file);
-
-    if (!req.file) {
-      console.log("Nenhum arquivo recebido.");
-      return res.status(400).json({ error: "Arquivo de perfil não enviado" });
-    }
-
-    const Bodyschema = z
-      .object({
-        originalname: z.string().min(1, "Nome do arquivo ausente"),
-        mimetype: z.union([z.literal("image/png"), z.literal("image/jpeg")]),
-        filename: z.string().min(1),
-      })
-      .passthrough(); // permite campos extras como `size`, `encoding` etc.
-
     try {
+      console.log("Arquivo recebido:", req.file);
+      if (!req.file) {
+        return res.status(400).json({ error: "Arquivo de perfil não enviado" });
+      }
+
+      const Bodyschema = z
+        .object({
+          originalname: z.string().min(1, "Nome do arquivo ausente"),
+          mimetype: z.union([z.literal("image/png"), z.literal("image/jpeg")]),
+          filename: z.string().min(1),
+        })
+        .passthrough();
+
       const fileData = Bodyschema.parse(req.file);
 
       const userId = req.user?.id;
@@ -208,14 +206,11 @@ export class UserController {
           .json({ error: "Usuário não autenticado corretamente" });
       }
 
-      // salva o nome do arquivo gerado pelo multer
       const fileNameToSave = fileData.filename;
 
       const updatedUser = await prisma.user.update({
         where: { id: userId },
-        data: {
-          profileImage: fileNameToSave,
-        },
+        data: { profileImage: fileNameToSave },
       });
 
       return res.status(200).json({
