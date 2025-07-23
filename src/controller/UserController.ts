@@ -111,14 +111,16 @@ export class UserController {
       if (!passwordMatch) {
         return res.status(401).json({ error: "Email ou senha inválidos" });
       }
-
       const token = jwt.sign(
         {
-          id: user.id,
           email: user.email,
           role: user.role,
         },
-        authConfig.jwt.secret
+        authConfig.jwt.secret,
+        {
+          subject: user.id, // ✅ ESSENCIAL
+          expiresIn: "1d", // opcional
+        }
       );
       return res.json({ token });
     } catch (error) {
@@ -134,7 +136,7 @@ export class UserController {
 
   verPerfil = async (req: Request, res: Response) => {
     const paramsSchema = z.object({
-      id: z.string().uuid(), // ou z.string().cuid() se usar cuid
+      id: z.string(),
     });
 
     try {
@@ -151,6 +153,9 @@ export class UserController {
       if (requester.id !== id && requester.role !== "ADMIN") {
         return res.status(403).json({ error: "Acesso negado" });
       }
+
+      console.log("requester.id:", requester.id);
+      console.log("param id:", id);
 
       const user = await prisma.user.findUnique({
         where: { id },
@@ -178,29 +183,38 @@ export class UserController {
   };
 
   uploadDePerfil = async (req: Request, res: Response) => {
-    const userId = req.user.id;
+    console.log("Arquivo recebido:", req.file);
 
-    const Bodyschema = z.object({
-      originalname: z.string().min(1, "Nome do arquivo ausente"),
-      mimetype: z.union([
-        z.literal("image/png"),
-        z.literal("image/jpeg"),
-        z.literal("image/jpg"),
-      ]),
-      filename: z.string().min(1),
-    });
+    if (!req.file) {
+      console.log("Nenhum arquivo recebido.");
+      return res.status(400).json({ error: "Arquivo de perfil não enviado" });
+    }
+
+    const Bodyschema = z
+      .object({
+        originalname: z.string().min(1, "Nome do arquivo ausente"),
+        mimetype: z.union([z.literal("image/png"), z.literal("image/jpeg")]),
+        filename: z.string().min(1),
+      })
+      .passthrough(); // permite campos extras como `size`, `encoding` etc.
 
     try {
-      if (!req.file) {
-        return res.status(400).json({ error: "Arquivo de perfil não enviado" });
+      const fileData = Bodyschema.parse(req.file);
+
+      const userId = req.user?.id;
+      if (!userId) {
+        return res
+          .status(400)
+          .json({ error: "Usuário não autenticado corretamente" });
       }
 
-      const fileData = Bodyschema.parse(req.file);
+      // salva o nome do arquivo gerado pelo multer
+      const fileNameToSave = fileData.filename;
 
       const updatedUser = await prisma.user.update({
         where: { id: userId },
         data: {
-          profileImage: fileData.filename,
+          profileImage: fileNameToSave,
         },
       });
 
@@ -210,10 +224,14 @@ export class UserController {
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Ops!" });
+        console.error("Erro de validação:", error.issues);
+        return res.status(400).json({
+          message: "Erro de validação dos dados do arquivo",
+          issues: error.issues,
+        });
       }
 
-      console.error(error);
+      console.error("Erro inesperado:", error);
       return res.status(500).json({ error: "Erro ao atualizar perfil" });
     }
   };
