@@ -4,7 +4,7 @@ import { authConfig } from "../config/auth";
 
 interface TokenPayload {
   sub: string;
-  role: string;
+  role: "USER" | "ADMIN" | "TECNICO";
   email: string;
   iat: number;
   exp: number;
@@ -21,19 +21,27 @@ export function ensureAuthenticated(
     return res.status(401).json({ error: "Token não fornecido" });
   }
 
-  const [, token] = authHeader.split(" ");
+  // Espera formato "Bearer token"
+  const parts = authHeader.split(" ");
+  if (parts.length !== 2 || parts[0] !== "Bearer") {
+    return res.status(401).json({ error: "Formato do token inválido" });
+  }
+
+  const token = parts[1];
 
   try {
     const decoded = jwt.verify(token, authConfig.jwt.secret) as TokenPayload;
 
+    console.log("Authorization header:", req.headers.authorization);
+
     req.user = {
-      id: decoded.sub,
+      id: decoded.sub, // id vindo do sub
       role: decoded.role,
       email: decoded.email,
     };
 
-    return next();
-  } catch {
+    next();
+  } catch (error) {
     return res.status(401).json({ error: "Token inválido ou expirado" });
   }
 }

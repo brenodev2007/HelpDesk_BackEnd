@@ -232,40 +232,59 @@ export class UserController {
   };
 
   criarChamado = async (req: Request, res: Response) => {
+    console.log("req.user =", req.user);
+    console.log("Body recebido:", req.body);
+
     const chamadoSchema = z.object({
-      descricao: z.string().min(10),
+      descricao: z
+        .string()
+        .min(10, "A descrição deve ter no mínimo 10 caracteres"),
       prioridade: z.enum(["BAIXA", "MÉDIA", "ALTA"]),
     });
 
     try {
+      // Confirma que o middleware de autenticação populou o usuário
+      if (!req.user) {
+        return res.status(401).json({ error: "Usuário não autenticado" });
+      }
+
+      // Validação do usuário autenticado
       const userData = z
         .object({
-          id: z.string().cuid(),
+          id: z.string(), // <- agora aceita qualquer string, não só cuid
           role: z.enum(["USER", "ADMIN", "TECNICO"]),
         })
         .parse(req.user);
 
-      if (userData.role !== "USER" && userData.role !== "ADMIN") {
+      // Apenas usuários com perfil USER ou ADMIN podem criar chamados
+      if (!["USER", "ADMIN"].includes(userData.role)) {
         return res
           .status(403)
           .json({ error: "Somente clientes podem criar chamados" });
       }
 
+      // Validação do corpo da requisição
       const data = chamadoSchema.parse(req.body);
 
+      // Criação do chamado no banco
       const chamado = await prisma.chamado.create({
         data: {
           descricao: data.descricao,
           prioridade: data.prioridade,
-          userId: userData.id, // o cliente que criou
+          userId: userData.id,
         },
       });
 
       return res.status(201).json({ message: "Chamado criado", chamado });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: "Dados inválidos" });
+        // Retorna os erros detalhados do Zod para facilitar debug
+        return res.status(400).json({
+          error: "Dados inválidos",
+        });
       }
+
+      console.error("Erro ao criar chamado:", error);
       return res.status(500).json({ error: "Erro ao criar chamado" });
     }
   };
