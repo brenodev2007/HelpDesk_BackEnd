@@ -87,25 +87,31 @@ Userroutes.patch(
 
 Userroutes.get(
   "/meus-chamados-tecnico",
+  ensureAuthenticated,
   ensureRole(["TECNICO", "ADMIN"]),
   userController.listarChamadosDoTecnico
 );
 
-Userroutes.patch(
-  "/atribuir-chamado-tecnico",
-  ensureRole(["ADMIN"]),
-  userController.atribuirChamadoTecnico
+Userroutes.post(
+  "/adicionar-servicos",
+  ensureAuthenticated,
+  ensureRole(["TECNICO", "ADMIN"]),
+  userController.adicionarServicosAoChamado
 );
 
 Userroutes.patch(
-  "atualizar-chamadoServico",
+  "/editar-status",
+  ensureAuthenticated,
+  ensureRole(["TECNICO", "ADMIN"]),
+  userController.editarStatusServico
+);
+
+// Essa rota adicional que você criou precisa da barra e da autenticação:
+Userroutes.patch(
+  "/atualizar-chamadoServico",
+  ensureAuthenticated,
+  ensureRole(["TECNICO", "ADMIN"]),
   userController.atualizarStatusChamadoServico
-);
-
-Userroutes.get(
-  "/listar-tecnicos",
-  ensureRole(["ADMIN"]),
-  userController.listarTecnicos
 );
 
 Userroutes.get("/:id", ensureAuthenticated, userController.verPerfil);

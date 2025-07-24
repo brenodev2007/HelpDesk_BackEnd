@@ -34,8 +34,9 @@ model User {
 
   profileImage String? @map("profile_image")
 
-  chamados Chamado[] // chamados criados pelo usuário (role USER)
-  servicos Servico[] // serviços que o técnico oferece
+  chamados       Chamado[] // chamados criados pelo usuário (role USER)
+  servicos       Servico[] // serviços que o técnico oferece
+  chamadoServico ChamadoServico[] // chamados que o técnico atendeu
 
   chamadosTecnico Chamado[] @relation("ChamadoTecnico") // chamados atribuídos a esse técnico
 
@@ -84,6 +85,9 @@ model ChamadoServico {
 
   servicoId String  @map("servico_id")
   servico   Servico @relation(fields: [servicoId], references: [id])
+
+  userId String? @map("user_id")
+  user   User?   @relation(fields: [userId], references: [id])
 
   status     Status     @default(PENDING)
   prioridade Prioridade @default(BAIXA)

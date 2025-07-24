@@ -594,6 +594,19 @@ export class UserController {
         where: { id: chamadoId },
       });
 
+      const servicosDoTecnico = await prisma.servico.findMany({
+        where: {
+          id: { in: servicosIds },
+          tecnicoId: userData.id,
+        },
+      });
+
+      if (servicosDoTecnico.length !== servicosIds.length) {
+        return res.status(403).json({
+          error: "Você só pode adicionar serviços que você mesmo criou",
+        });
+      }
+
       if (!chamado || chamado.userId !== userData.id) {
         return res
           .status(403)
@@ -683,15 +696,19 @@ export class UserController {
   listarChamadosDoTecnico = async (req: Request, res: Response) => {
     const userId = req.user.id;
 
+    // Ajuste para aceitar string genérica (não necessariamente cuid)
     const schema = z.object({
-      id: z.string().cuid(),
+      id: z.string(),
     });
+
     try {
       schema.parse({ id: userId });
 
+      console.log(`listando chamados para tecnicoId: ${userId}`);
+
       const chamados = await prisma.chamadoServico.findMany({
         where: {
-          servico: {
+          chamado: {
             tecnicoId: userId,
           },
         },
@@ -705,11 +722,14 @@ export class UserController {
         },
       });
 
+      console.log(`Chamados encontrados: ${chamados.length}`);
+
       return res.json({ chamados });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "ID do técnico inválido" });
       }
+      console.error(error);
       return res
         .status(500)
         .json({ error: "Erro ao buscar chamados do técnico" });
