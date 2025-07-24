@@ -25,8 +25,6 @@ Userroutes.get(
   userController.listarChamadoCliente
 );
 
-Userroutes.get("/:id", ensureAuthenticated, userController.verPerfil);
-
 Userroutes.patch(
   "/uploadPerfil",
   ensureRole(["USER", "TECNICO", "ADMIN"]),
@@ -61,12 +59,14 @@ Userroutes.get(
 );
 
 Userroutes.get(
-  "/listar-servicos-admin",
-  ensureRole(["ADMIN"]),
-  userController.listarServicosAdmin
+  "/listar-servicos",
+  ensureAuthenticated,
+  ensureRole(["ADMIN", "TECNICO"]),
+  userController.listarServicos
 );
 
 //Rotas TECNICO
+
 Userroutes.patch(
   "/pegar-chamado",
   ensureRole(["TECNICO", "ADMIN"]),
@@ -90,3 +90,22 @@ Userroutes.get(
   ensureRole(["TECNICO", "ADMIN"]),
   userController.listarChamadosDoTecnico
 );
+
+Userroutes.patch(
+  "/atribuir-chamado-tecnico",
+  ensureRole(["ADMIN"]),
+  userController.atribuirChamadoTecnico
+);
+
+Userroutes.patch(
+  "atualizar-chamadoServico",
+  userController.atualizarStatusChamadoServico
+);
+
+Userroutes.get(
+  "/listar-tecnicos",
+  ensureRole(["ADMIN"]),
+  userController.listarTecnicos
+);
+
+Userroutes.get("/:id", ensureAuthenticated, userController.verPerfil);

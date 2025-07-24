@@ -7,83 +7,88 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Status{
+enum Status {
   PENDING
   IN_PROGRESS
   DONE
 }
 
-enum Prioridade{
+enum Prioridade {
   BAIXA
   MÉDIA
   ALTA
 }
 
-enum UserRole{
+enum UserRole {
   ADMIN
   USER
   TECNICO
 }
 
 model User {
-  id       String    @id @default(cuid())
-  email    String    @unique
+  id       String   @id @default(cuid())
+  email    String   @unique
   password String
-  role     UserRole  @default(USER)
-  cargo    String?   // Apenas para técnicos
+  role     UserRole @default(USER)
+  cargo    String? // Apenas para técnicos
 
   profileImage String? @map("profile_image")
 
-  chamados Chamado[]
-  servicos Servico[] // Apenas se for técnico
+  chamados Chamado[] // chamados criados pelo usuário (role USER)
+  servicos Servico[] // serviços que o técnico oferece
 
-  createdAt DateTime @default(now()) @map("created_at")
+  chamadosTecnico Chamado[] @relation("ChamadoTecnico") // chamados atribuídos a esse técnico
+
+  createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime? @updatedAt @map("updated_at")
 
   @@map("users")
 }
 
-
-model Chamado{
-  id String   @id @default(cuid())
-  userId String @map("user_id")
-  user User @relation(fields: [userId], references: [id])
-  prioridade Prioridade @default(BAIXA)
+model Chamado {
+  id              String           @id @default(cuid())
+  userId          String           @map("user_id")
+  user            User             @relation(fields: [userId], references: [id])
+  prioridade      Prioridade       @default(BAIXA)
   chamado_servico ChamadoServico[]
-  descricao String
+  descricao       String
 
-  createdAt DateTime @default(now()) @map("created_at")
+  tecnicoId String? @map("tecnico_id")
+  tecnico   User?   @relation("ChamadoTecnico", fields: [tecnicoId], references: [id])
+
+  createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime? @updatedAt @map("updated_at")
 
   @@map("chamados")
 }
 
-model Servico{
-  id String   @id @default(cuid())
-  titulo String
-  descricao String 
+model Servico {
+  id        String @id @default(cuid())
+  titulo    String
+  descricao String
   tecnicoId String @map("tecnico_id")
   tecnico   User   @relation(fields: [tecnicoId], references: [id])
 
   chamado_servico ChamadoServico[]
 
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime? @updatedAt @map("updated_at")
+
   @@map("servicos")
 }
 
-model ChamadoServico{
-  id String   @id @default(cuid())
-  chamadoId String @map("chamado_id")
-  chamado Chamado @relation(fields: [chamadoId], references: [id])
+model ChamadoServico {
+  id        String  @id @default(cuid())
+  chamadoId String  @map("chamado_id")
+  chamado   Chamado @relation(fields: [chamadoId], references: [id])
 
-  servicoId String @map("servico_id")
-  servico Servico @relation(fields: [servicoId], references: [id])
+  servicoId String  @map("servico_id")
+  servico   Servico @relation(fields: [servicoId], references: [id])
 
-  status Status @default(PENDING)
+  status     Status     @default(PENDING)
   prioridade Prioridade @default(BAIXA)
 
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime? @updatedAt @map("updated_at")
 
   @@map("chamado_servico")

@@ -135,35 +135,17 @@ export class UserController {
   //Lógica JWT
 
   verPerfil = async (req: Request, res: Response) => {
-    const paramsSchema = z.object({
-      id: z.string(),
-    });
-
     try {
-      const { id } = paramsSchema.parse(req.params);
-
-      // req.user foi preenchido no middleware JWT
       const requester = req.user;
 
       if (!requester) {
         return res.status(401).json({ error: "Usuário não autenticado" });
       }
 
-      // Permitir só ver perfil próprio ou admin
-      if (requester.id !== id && requester.role !== "ADMIN") {
-        return res.status(403).json({ error: "Acesso negado" });
-      }
-
-      console.log("requester.id:", requester.id);
-      console.log("param id:", id);
-
+      // Busca o próprio perfil do usuário autenticado
       const user = await prisma.user.findUnique({
-        where: { id },
-        select: {
-          id: true,
-          email: true,
-          role: true,
-        },
+        where: { id: requester.id },
+        select: { id: true, email: true, role: true },
       });
 
       if (!user) {
@@ -172,11 +154,6 @@ export class UserController {
 
       return res.json(user);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Parâmetro inválido", issues: error.issues });
-      }
       console.error(error);
       return res.status(500).json({ error: "Erro interno do servidor" });
     }
@@ -427,10 +404,39 @@ export class UserController {
     }
   };
 
-  listarServicosAdmin = async (req: Request, res: Response) => {
+  listarServicos = async (req: Request, res: Response) => {
+    try {
+      // req.user já vem do middleware, não precisa buscar no banco nem parsear
+      const userData = req.user as { id: string; role: string; email: string };
+
+      if (userData.role !== "ADMIN" && userData.role !== "TECNICO") {
+        return res.status(403).json({ error: "Acesso negado" });
+      }
+
+      const servicos = await prisma.servico.findMany({
+        include: {
+          tecnico: {
+            select: { id: true, email: true, cargo: true },
+          },
+        },
+      });
+
+      return res.json(servicos);
+    } catch (error) {
+      console.error("Erro ao listar serviços:", error);
+      return res.status(500).json({ error: "Erro ao listar serviços" });
+    }
+  };
+
+  atribuirChamadoTecnico = async (req: Request, res: Response) => {
     const authSchema = z.object({
       id: z.string().cuid(),
       role: z.enum(["ADMIN", "USER", "TECNICO"]),
+    });
+
+    const bodySchema = z.object({
+      chamadoId: z.string(),
+      tecnicoId: z.string(),
     });
 
     try {
@@ -440,30 +446,96 @@ export class UserController {
         return res.status(403).json({ error: "Acesso negado" });
       }
 
-      const servico = await prisma.chamado.findMany({
-        include: {
-          user: true,
-          chamado_servico: {
-            include: { servico: true },
-          },
+      const { chamadoId, tecnicoId } = bodySchema.parse(req.body);
+
+      // Verifica se técnico existe e é técnico
+      const tecnico = await prisma.user.findUnique({
+        where: { id: tecnicoId },
+      });
+
+      if (!tecnico || tecnico.role !== "TECNICO") {
+        return res.status(400).json({ error: "Técnico inválido" });
+      }
+
+      // Atualiza chamado atribuindo técnico (sem status)
+      const chamadoAtualizado = await prisma.chamado.update({
+        where: { id: chamadoId },
+        data: {
+          tecnicoId,
         },
       });
 
-      return res.json(servico);
+      return res.status(200).json({
+        message: "Chamado atribuído com sucesso",
+        chamado: chamadoAtualizado,
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ error: "Token inválido ou mal formatado" });
+        return res.status(400).json({ error: "Dados inválidos" });
       }
-      return res.status(500).json({ error: "Erro ao listar chamados" });
+      console.error(error);
+      return res.status(500).json({ error: "Erro ao atribuir chamado" });
     }
   };
 
+  atualizarStatusChamadoServico = async (req: Request, res: Response) => {
+    const authSchema = z.object({
+      id: z.string(),
+      role: z.enum(["ADMIN", "USER", "TECNICO"]),
+    });
+
+    const bodySchema = z.object({
+      chamadoServicoId: z.string(),
+      status: z.enum(["PENDING", "IN_PROGRESS", "DONE"]),
+    });
+
+    try {
+      // Valida usuário autenticado
+      const userData = authSchema.parse(req.user);
+
+      // Apenas ADMIN e TECNICO podem atualizar status
+      if (userData.role !== "ADMIN" && userData.role !== "TECNICO") {
+        return res.status(403).json({ error: "Acesso negado" });
+      }
+
+      // Valida corpo da requisição
+      const { chamadoServicoId, status } = bodySchema.parse(req.body);
+
+      // Atualiza o status do ChamadoServico
+      const chamadoServicoAtualizado = await prisma.chamadoServico.update({
+        where: { id: chamadoServicoId },
+        data: { status },
+      });
+
+      return res.status(200).json({
+        message: "Status do serviço atualizado com sucesso",
+        chamadoServico: chamadoServicoAtualizado,
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Dados inválidos" });
+      }
+      console.error(error);
+      return res.status(500).json({ error: "Erro ao atualizar status" });
+    }
+  };
+
+  listarTecnicos = async (req: Request, res: Response) => {
+    try {
+      const tecnicos = await prisma.user.findMany({
+        where: { role: "TECNICO" },
+        select: { id: true, email: true },
+      });
+
+      return res.status(200).json(tecnicos);
+    } catch (error) {
+      return res.status(500).json({ error: "Erro ao listar técnicos" });
+    }
+  };
   // ========== TÉCNICO ==========
   pegarChamado = async (req: Request, res: Response) => {
     const schema = z.object({
-      chamadoId: z.string().cuid(),
+      chamadoId: z.string(),
     });
 
     try {
@@ -471,7 +543,7 @@ export class UserController {
 
       const userData = z
         .object({
-          id: z.string().cuid(),
+          id: z.string(),
           role: z.enum(["TECNICO", "ADMIN", "USER"]),
         })
         .parse(req.user);
