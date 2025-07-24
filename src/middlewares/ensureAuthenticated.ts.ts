@@ -40,6 +40,8 @@ export function ensureAuthenticated(
       email: decoded.email,
     };
 
+    console.log("Middleware ensureAuthenticated - user:", req.user);
+
     next();
   } catch (error) {
     return res.status(401).json({ error: "Token inválido ou expirado" });

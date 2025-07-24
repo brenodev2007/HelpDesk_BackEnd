@@ -19,6 +19,12 @@ Userroutes.delete(
 
 Userroutes.post("/login", userController.login);
 
+Userroutes.get(
+  "/chamados",
+  ensureAuthenticated,
+  userController.listarChamadoCliente
+);
+
 Userroutes.get("/:id", ensureAuthenticated, userController.verPerfil);
 
 Userroutes.patch(
@@ -32,12 +38,6 @@ Userroutes.post(
   "/criar-chamado",
   ensureRole(["USER", "ADMIN"]),
   userController.criarChamado
-);
-
-Userroutes.get(
-  "/chamados",
-  ensureRole(["USER", "ADMIN"]),
-  userController.listarChamadoCliente
 );
 
 //Rotas do ADMIN

@@ -290,31 +290,25 @@ export class UserController {
   };
 
   listarChamadoCliente = async (req: Request, res: Response) => {
-    const userSchema = z.object({
-      id: z.string().uuid(),
-    });
-
     try {
-      const { id: userId } = userSchema.parse(req.user);
+      const userId = req.user?.id;
+      console.log("listando chamados para userId:", userId);
 
+      if (!userId) {
+        return res.status(400).json({ message: "ID do usuário ausente" });
+      }
+
+      // Consulta simplificada para testes (sem include)
       const chamados = await prisma.chamado.findMany({
-        where: { userId }, // certifique-se que o campo no banco é userId mesmo
-        include: {
-          chamado_servico: {
-            include: {
-              servico: true,
-            },
-          },
-        },
+        where: { userId },
+        orderBy: { createdAt: "desc" },
       });
+
+      console.log("Chamados encontrados:", chamados.length);
 
       return res.json(chamados);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "ID do usuário inválido" });
-      }
-
-      console.error(error);
+      console.error("Erro ao listar chamados:", error);
       return res.status(500).json({ error: "Erro ao listar chamados" });
     }
   };
