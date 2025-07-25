@@ -7,6 +7,7 @@ import { authConfig } from "@/config/auth";
 import { z } from "zod";
 import { UserRole } from "@/generated/prisma";
 import { AppError } from "@/utils/AppError";
+import { ZodError } from "zod";
 
 export class UserController {
   // ========== CLIENTE ==========
@@ -632,30 +633,38 @@ export class UserController {
       return res.status(500).json({ error: "Erro ao adicionar serviços" });
     }
   };
-
   editarStatusServico = async (req: Request, res: Response) => {
-    const schema = z.object({
-      chamadoServicoId: z.string().cuid(),
-      novoStatus: z.enum(["PENDING", "IN_PROGRESS", "DONE"]),
+    console.log("💡 Entrou no editarStatusServico");
+    // Permitimos que o status venha em minúsculo e normalizamos
+    const schemaBody = z.object({
+      chamadoServicoId: z.string().min(5, "ID do chamado inválido"),
+      novoStatus: z.string().min(3), // Validaremos manualmente depois
     });
 
+    const schemaUser = z.object({
+      id: z.string(),
+      role: z.enum(["TECNICO", "ADMIN", "USER"]),
+    });
+
+    const statusValidos = ["PENDING", "IN_PROGRESS", "DONE"];
+
     try {
-      const { chamadoServicoId, novoStatus } = schema.parse(req.body);
+      console.log("Body recebido:", req.body);
+      console.log("Usuário recebido:", req.user);
+      const { chamadoServicoId, novoStatus } = schemaBody.parse(req.body);
+      console.log("✅ Parse body funcionou:", chamadoServicoId, novoStatus);
+      const userData = schemaUser.parse(req.user);
+      console.log("✅ Parse user funcionou:", userData);
 
-      const userData = z
-        .object({
-          id: z.string().cuid(),
-          role: z.enum(["TECNICO", "ADMIN", "USER"]),
-        })
-        .parse(req.user);
+      const statusFormatado = novoStatus.toUpperCase();
 
-      if (userData.role !== "TECNICO" && userData.role !== "ADMIN") {
-        return res
-          .status(403)
-          .json({ error: "Somente técnicos podem atualizar status" });
+      if (!statusValidos.includes(statusFormatado)) {
+        return res.status(400).json({
+          error: `Status inválido. Use: ${statusValidos.join(", ")}`,
+        });
       }
 
-      // Busca o chamado_servico junto com o serviço
+      // Busca o chamado_servico com o técnico responsável
       const chamadoServico = await prisma.chamadoServico.findUnique({
         where: { id: chamadoServicoId },
         include: {
@@ -670,26 +679,26 @@ export class UserController {
           .status(404)
           .json({ error: "Chamado/Serviço não encontrado" });
       }
+      console.log("req.body recebido:", req.body);
 
-      // Valida se o técnico dono do serviço é quem está logado
-      if (chamadoServico.servico.tecnicoId !== userData.id) {
-        return res
-          .status(403)
-          .json({ error: "Você não tem permissão para editar esse serviço" });
-      }
-
+      // Atualiza o status
       const atualizado = await prisma.chamadoServico.update({
         where: { id: chamadoServicoId },
-        data: { status: novoStatus },
+        data: { status: statusFormatado as any },
       });
 
-      return res
-        .status(200)
-        .json({ message: "Status atualizado com sucesso", atualizado });
-    } catch (err) {
-      if (err instanceof z.ZodError)
-        return res.status(400).json({ error: "Dados inválidos" });
-      return res.status(500).json({ error: "Erro ao atualizar status" });
+      return res.status(200).json({
+        message: "Status atualizado com sucesso",
+        atualizado,
+      });
+    } catch (err: any) {
+      console.error("⚠️ ERRO CAPTURADO COMPLETO:");
+      console.dir(err, { depth: null });
+
+      return res.status(500).json({
+        error: "Erro inesperado",
+        detalhes: JSON.stringify(err, null, 2),
+      });
     }
   };
 
