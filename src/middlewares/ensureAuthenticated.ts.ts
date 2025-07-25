@@ -30,12 +30,12 @@ export function ensureAuthenticated(
   const token = parts[1];
 
   try {
-    const decoded = jwt.verify(token, authConfig.jwt.secret) as TokenPayload;
+    const decoded = jwt.verify(token, authConfig.jwt.secret) as any;
 
     console.log("Authorization header:", req.headers.authorization);
 
     req.user = {
-      id: decoded.sub, // id vindo do sub
+      id: decoded.sub || decoded.id, // id vindo do sub
       role: decoded.role,
       email: decoded.email,
     };

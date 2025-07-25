@@ -119,8 +119,8 @@ export class UserController {
         },
         authConfig.jwt.secret,
         {
-          subject: user.id, // ✅ ESSENCIAL
-          expiresIn: "1d", // opcional
+          subject: user.id,
+          expiresIn: "1d",
         }
       );
       return res.json({ token });
@@ -133,6 +133,64 @@ export class UserController {
     }
   };
 
+  atualizarEmail = async (req: Request, res: Response) => {
+    console.log("Dentro do atualizarEmail, req.user:", req.user);
+    const schema = z.object({
+      novoEmail: z.string().email("Email inválido"),
+      senhaAtual: z.string().min(6, "Senha obrigatória"),
+    });
+
+    try {
+      const userData = req.user;
+
+      if (!userData || !userData.id) {
+        return res.status(401).json({ error: "Usuário não autenticado" });
+      }
+
+      const { novoEmail, senhaAtual } = schema.parse(req.body);
+
+      const user = await prisma.user.findUnique({
+        where: { id: userData.id },
+      });
+
+      if (!user) {
+        return res.status(404).json({ error: "Usuário não encontrado" });
+      }
+
+      // Verifica a senha atual
+      const passwordMatch = await bcrypt.compare(senhaAtual, user.password);
+      if (!passwordMatch) {
+        return res.status(401).json({ error: "Senha atual incorreta" });
+      }
+
+      // Verifica se o novo email já está em uso
+      const emailExistente = await prisma.user.findUnique({
+        where: { email: novoEmail },
+      });
+
+      if (emailExistente && emailExistente.id !== user.id) {
+        return res.status(409).json({ error: "Este email já está em uso" });
+      }
+
+      // Atualiza o email
+      const userAtualizado = await prisma.user.update({
+        where: { id: user.id },
+        data: { email: novoEmail },
+      });
+
+      return res.status(200).json({
+        message: "Email atualizado com sucesso",
+        user: { id: userAtualizado.id, email: userAtualizado.email },
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Dados inválidos" });
+      }
+
+      console.error("Erro ao atualizar email:", error);
+      return res.status(500).json({ error: "Erro interno" });
+    }
+  };
   //Lógica JWT
 
   verPerfil = async (req: Request, res: Response) => {
@@ -157,55 +215,6 @@ export class UserController {
     } catch (error) {
       console.error(error);
       return res.status(500).json({ error: "Erro interno do servidor" });
-    }
-  };
-
-  uploadDePerfil = async (req: Request, res: Response) => {
-    try {
-      console.log("Arquivo recebido:", req.file);
-      if (!req.file) {
-        return res.status(400).json({ error: "Arquivo de perfil não enviado" });
-      }
-
-      const Bodyschema = z
-        .object({
-          originalname: z.string().min(1, "Nome do arquivo ausente"),
-          mimetype: z.union([z.literal("image/png"), z.literal("image/jpeg")]),
-          filename: z.string().min(1),
-        })
-        .passthrough();
-
-      const fileData = Bodyschema.parse(req.file);
-
-      const userId = req.user?.id;
-      if (!userId) {
-        return res
-          .status(400)
-          .json({ error: "Usuário não autenticado corretamente" });
-      }
-
-      const fileNameToSave = fileData.filename;
-
-      const updatedUser = await prisma.user.update({
-        where: { id: userId },
-        data: { profileImage: fileNameToSave },
-      });
-
-      return res.status(200).json({
-        message: "Imagem de perfil atualizada com sucesso",
-        user: updatedUser,
-      });
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        console.error("Erro de validação:", error.issues);
-        return res.status(400).json({
-          message: "Erro de validação dos dados do arquivo",
-          issues: error.issues,
-        });
-      }
-
-      console.error("Erro inesperado:", error);
-      return res.status(500).json({ error: "Erro ao atualizar perfil" });
     }
   };
 

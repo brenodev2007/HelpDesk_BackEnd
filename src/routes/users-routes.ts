@@ -25,11 +25,10 @@ Userroutes.get(
   userController.listarChamadoCliente
 );
 
-Userroutes.patch(
-  "/uploadPerfil",
-  ensureRole(["USER", "TECNICO", "ADMIN"]),
-  upload.single("file"),
-  userController.uploadDePerfil
+Userroutes.put(
+  "/atualizar-email",
+  ensureAuthenticated,
+  userController.atualizarEmail
 );
 
 Userroutes.post(
