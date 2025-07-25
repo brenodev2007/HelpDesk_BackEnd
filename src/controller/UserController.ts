@@ -226,7 +226,7 @@ export class UserController {
       descricao: z
         .string()
         .min(10, "A descrição deve ter no mínimo 10 caracteres"),
-      prioridade: z.enum(["BAIXA", "MÉDIA", "ALTA"]),
+      prioridade: z.enum(["BAIXA", "MEDIA", "ALTA"]),
     });
 
     try {
@@ -440,7 +440,7 @@ export class UserController {
 
   atribuirChamadoTecnico = async (req: Request, res: Response) => {
     const authSchema = z.object({
-      id: z.string().cuid(),
+      id: z.string(),
       role: z.enum(["ADMIN", "USER", "TECNICO"]),
     });
 
@@ -542,6 +542,29 @@ export class UserController {
       return res.status(500).json({ error: "Erro ao listar técnicos" });
     }
   };
+
+  listarTodosChamados = async (req: Request, res: Response) => {
+    try {
+      const chamados = await prisma.chamado.findMany({
+        include: {
+          chamado_servico: {
+            include: {
+              servico: true,
+            },
+          },
+          user: true, // se quiser exibir também o cliente que criou
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+
+      res.status(200).json(chamados);
+    } catch (err) {
+      console.error("Erro ao listar todos os chamados:", err);
+      res.status(500).json({ message: "Erro ao buscar chamados" });
+    }
+  };
   // ========== TÉCNICO ==========
   pegarChamado = async (req: Request, res: Response) => {
     const schema = z.object({
@@ -576,7 +599,6 @@ export class UserController {
       return res.status(500).json({ error: "Erro ao atribuir chamado" });
     }
   };
-
   adicionarServicosAoChamado = async (req: Request, res: Response) => {
     const schema = z.object({
       chamadoId: z.string().cuid(),
@@ -588,7 +610,7 @@ export class UserController {
 
       const userData = z
         .object({
-          id: z.string().cuid(),
+          id: z.string(),
           role: z.enum(["TECNICO", "ADMIN", "USER"]),
         })
         .parse(req.user);
@@ -599,28 +621,35 @@ export class UserController {
           .json({ error: "Somente técnicos podem adicionar serviços" });
       }
 
-      // Verifica se o chamado pertence ao técnico
       const chamado = await prisma.chamado.findUnique({
         where: { id: chamadoId },
       });
 
-      const servicosDoTecnico = await prisma.servico.findMany({
-        where: {
-          id: { in: servicosIds },
-          tecnicoId: userData.id,
-        },
-      });
-
-      if (servicosDoTecnico.length !== servicosIds.length) {
-        return res.status(403).json({
-          error: "Você só pode adicionar serviços que você mesmo criou",
-        });
+      if (!chamado) {
+        return res.status(404).json({ error: "Chamado não encontrado" });
       }
 
-      if (!chamado || chamado.userId !== userData.id) {
-        return res
-          .status(403)
-          .json({ error: "Você não pode modificar este chamado" });
+      if (userData.role === "TECNICO") {
+        // Verifica se o chamado pertence ao técnico
+        if (chamado.userId !== userData.id) {
+          return res
+            .status(403)
+            .json({ error: "Você não pode modificar este chamado" });
+        }
+
+        // Verifica se os serviços são do próprio técnico
+        const servicosDoTecnico = await prisma.servico.findMany({
+          where: {
+            id: { in: servicosIds },
+            tecnicoId: userData.id,
+          },
+        });
+
+        if (servicosDoTecnico.length !== servicosIds.length) {
+          return res.status(403).json({
+            error: "Você só pode adicionar serviços que você mesmo criou",
+          });
+        }
       }
 
       const criado = await prisma.chamadoServico.createMany({
@@ -628,7 +657,7 @@ export class UserController {
           chamadoId,
           servicoId,
           status: "PENDING",
-          prioridade: "MÉDIA",
+          prioridade: "MEDIA",
         })),
       });
 
