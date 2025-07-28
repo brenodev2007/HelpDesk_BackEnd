@@ -407,34 +407,68 @@ export class UserController {
     const servicoSchema = z.object({
       titulo: z.string().min(2),
       descricao: z.string().min(5),
-      tecnicoId: z.string().cuid(), // ou uuid() se for UUID
     });
 
     try {
-      const data = servicoSchema.parse(req.body);
+      // Verifica se usuário está autenticado
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
 
-      const tecnico = await prisma.user.findUnique({
-        where: { id: data.tecnicoId },
-      });
-
-      if (!tecnico || tecnico.role !== "TECNICO") {
-        return res.status(404).json({ error: "Técnico não encontrado" });
+      if (!userId || (userRole !== "TECNICO" && userRole !== "ADMIN")) {
+        return res.status(401).json({ error: "Não autorizado" });
       }
 
+      // Valida dados do corpo da requisição
+      const data = servicoSchema.parse(req.body);
+
+      // Cria serviço com o ID do usuário autenticado
       const servico = await prisma.servico.create({
         data: {
           titulo: data.titulo,
           descricao: data.descricao,
-          tecnicoId: data.tecnicoId,
+          tecnicoId: userId, // pega automaticamente
         },
       });
 
       return res.status(201).json(servico);
     } catch (err) {
-      if (err instanceof z.ZodError)
-        return res.status(400).json({ message: "Dados inválidos" });
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ error: "Dados inválidos" });
+      }
 
       return res.status(500).json({ error: "Erro ao criar serviço" });
+    }
+  };
+
+  deletarServico = async (req: Request, res: Response) => {
+    const schema = z.object({
+      id: z.string(),
+    });
+
+    try {
+      const { id } = schema.parse(req.params);
+
+      const servico = await prisma.servico.findUnique({
+        where: { id },
+      });
+
+      if (!servico) {
+        return res.status(404).json({ error: "Serviço não encontrado." });
+      }
+
+      // Deleta o serviço
+      await prisma.servico.delete({
+        where: { id },
+      });
+
+      return res.status(200).json({ message: "Serviço deletado com sucesso." });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "ID inválido." });
+      }
+
+      console.error("Erro ao deletar serviço:", error);
+      return res.status(500).json({ error: "Erro interno do servidor." });
     }
   };
 

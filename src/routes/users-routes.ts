@@ -63,6 +63,13 @@ Userroutes.get(
   ensureRole(["ADMIN"]),
   userController.listarTodosChamados
 );
+
+Userroutes.delete(
+  "/remover-servico/:id",
+  ensureAuthenticated,
+  ensureRole(["ADMIN"]),
+  userController.removerServico
+);
 Userroutes.get(
   "/listar-clientes",
   ensureAuthenticated,
