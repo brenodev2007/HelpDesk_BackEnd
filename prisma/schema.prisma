@@ -25,6 +25,13 @@ enum UserRole {
   TECNICO
 }
 
+enum CategoriaServico {
+  SUPORTE
+  INSTALACAO
+  MANUTENCAO
+  CONSULTORIA
+}
+
 model User {
   id       String   @id @default(cuid())
   email    String   @unique
@@ -53,6 +60,7 @@ model Chamado {
   prioridade      Prioridade       @default(BAIXA)
   chamado_servico ChamadoServico[]
   descricao       String
+  categoria       CategoriaServico @default(SUPORTE)
 
   tecnicoId String? @map("tecnico_id")
   tecnico   User?   @relation("ChamadoTecnico", fields: [tecnicoId], references: [id])
@@ -64,20 +72,19 @@ model Chamado {
 }
 
 model Servico {
-  id        String @id @default(cuid())
-  titulo    String
-  descricao String
-  tecnicoId String @map("tecnico_id")
-  tecnico   User   @relation(fields: [tecnicoId], references: [id])
+  id          String           @id @default(cuid())
+  titulo      String
+  descricao   String
+  tecnicoId   String           @map("tecnico_id")
+  tecnico     User             @relation(fields: [tecnicoId], references: [id])
 
   chamado_servico ChamadoServico[]
 
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime? @updatedAt @map("updated_at")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime?        @updatedAt @map("updated_at")
 
   @@map("servicos")
 }
-
 model ChamadoServico {
   id        String  @id @default(cuid())
   chamadoId String  @map("chamado_id")
@@ -96,4 +103,5 @@ model ChamadoServico {
   updatedAt DateTime? @updatedAt @map("updated_at")
 
   @@map("chamado_servico")
+  @@unique([servicoId]) 
 }

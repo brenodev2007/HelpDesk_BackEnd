@@ -8,6 +8,7 @@ import { z } from "zod";
 import { UserRole } from "@/generated/prisma";
 import { AppError } from "@/utils/AppError";
 import { ZodError } from "zod";
+import { CategoriaServico } from "@prisma/client";
 
 export class UserController {
   // ========== CLIENTE ==========
@@ -222,42 +223,40 @@ export class UserController {
     console.log("req.user =", req.user);
     console.log("Body recebido:", req.body);
 
+    // 2. Use z.nativeEnum para tipar o campo com base no enum do Prisma
     const chamadoSchema = z.object({
       descricao: z
         .string()
         .min(10, "A descrição deve ter no mínimo 10 caracteres"),
       prioridade: z.enum(["BAIXA", "MEDIA", "ALTA"]),
+      categoria: z.nativeEnum(CategoriaServico),
     });
 
     try {
-      // Confirma que o middleware de autenticação populou o usuário
       if (!req.user) {
         return res.status(401).json({ error: "Usuário não autenticado" });
       }
 
-      // Validação do usuário autenticado
       const userData = z
         .object({
-          id: z.string(), // <- agora aceita qualquer string, não só cuid
+          id: z.string(),
           role: z.enum(["USER", "ADMIN", "TECNICO"]),
         })
         .parse(req.user);
 
-      // Apenas usuários com perfil USER ou ADMIN podem criar chamados
       if (!["USER", "ADMIN"].includes(userData.role)) {
         return res
           .status(403)
           .json({ error: "Somente clientes podem criar chamados" });
       }
 
-      // Validação do corpo da requisição
       const data = chamadoSchema.parse(req.body);
 
-      // Criação do chamado no banco
       const chamado = await prisma.chamado.create({
         data: {
           descricao: data.descricao,
           prioridade: data.prioridade,
+          categoria: data.categoria, // 3. Agora está no tipo certo
           userId: userData.id,
         },
       });
@@ -265,9 +264,9 @@ export class UserController {
       return res.status(201).json({ message: "Chamado criado", chamado });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        // Retorna os erros detalhados do Zod para facilitar debug
         return res.status(400).json({
           error: "Dados inválidos",
+          detalhes: error.issues.map((issue) => issue.message),
         });
       }
 
@@ -275,7 +274,6 @@ export class UserController {
       return res.status(500).json({ error: "Erro ao criar chamado" });
     }
   };
-
   listarChamadoCliente = async (req: Request, res: Response) => {
     try {
       const userId = req.user?.id;
