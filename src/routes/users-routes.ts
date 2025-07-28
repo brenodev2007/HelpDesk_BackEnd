@@ -37,6 +37,19 @@ Userroutes.put(
   userController.atualizarEmail
 );
 
+Userroutes.delete(
+  "/remover-chamado/:id",
+  ensureAuthenticated,
+  userController.removerChamado
+);
+
+Userroutes.delete(
+  "/remover-servico/:id",
+  ensureAuthenticated,
+  ensureRole(["USER", "ADMIN"]),
+  userController.removerServico
+);
+
 // Admin
 Userroutes.post(
   "/criar-tecnico",

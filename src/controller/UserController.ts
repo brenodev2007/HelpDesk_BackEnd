@@ -300,6 +300,61 @@ export class UserController {
     }
   };
 
+  removerChamado = async (req: Request, res: Response) => {
+    const schema = z.object({
+      id: z.string(),
+    });
+    try {
+      const { id } = schema.parse(req.params);
+
+      await prisma.chamadoServico.deleteMany({
+        where: {
+          chamadoId: id,
+        },
+      });
+
+      await prisma.chamado.delete({
+        where: {
+          id,
+        },
+      });
+
+      return res.status(200).json({ message: "Chamado removido com sucesso." });
+    } catch (error) {
+      console.error("Erro ao remover chamado:", error);
+      return res.status(500).json({ error: "Erro ao remover chamado." });
+    }
+  };
+
+  removerServico = async (req: Request, res: Response) => {
+    const schema = z.object({
+      id: z.string(),
+    });
+
+    try {
+      const { id } = schema.parse(req.params);
+
+      // Verifica se o serviço existe
+      const servico = await prisma.servico.findUnique({
+        where: { id },
+      });
+
+      if (!servico) {
+        return res.status(404).json({ error: "Serviço não encontrado" });
+      }
+
+      // Remove o serviço
+      await prisma.servico.delete({
+        where: { id },
+      });
+
+      return res.status(200).json({ message: "Serviço removido com sucesso" });
+    } catch (error) {
+      console.error("Erro ao remover serviço:", error);
+      return res.status(500).json({ error: "Erro ao remover serviço" });
+    }
+  };
+
   // ========== ADMIN ==========
   criarTecnico = async (req: Request, res: Response) => {
     const tecnicoSchema = z.object({
@@ -552,7 +607,8 @@ export class UserController {
               servico: true,
             },
           },
-          user: true, // se quiser exibir também o cliente que criou
+          user: true,
+          tecnico: true, // se quiser exibir também o cliente que criou
         },
         orderBy: {
           createdAt: "desc",
