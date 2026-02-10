@@ -1,5 +1,5 @@
 ## 💡 Sobre o projeto
-Sistema de pagamentos instantâneos desenvolvido para resolver a gestão de tarefas dentro do ambiente coorporativo,
+Sistema de gerenciamento instantâneos desenvolvido para resolver a gestão de tarefas dentro do ambiente coorporativo,
 utilizado em ambiente real de produção.
 
 ## 🛠️ Tecnologias
